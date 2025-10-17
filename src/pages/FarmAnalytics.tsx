@@ -30,10 +30,11 @@ const FarmAnalytics = () => {
     harvest_date: new Date().toISOString().split('T')[0],
     revenue: ''
   });
+  const [timePeriod, setTimePeriod] = useState<'7' | '30' | '90' | 'all'>('30');
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [timePeriod]);
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -98,7 +99,17 @@ const FarmAnalytics = () => {
     }
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+  const filteredExpenses = expenses.filter(exp => {
+    if (timePeriod === 'all') return true;
+    const days = Number(timePeriod);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return new Date(exp.expense_date) >= cutoff;
+  });
+
+  const rentalExpenses = filteredExpenses.filter(e => e.category === 'equipment');
+
+  const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
   const totalRevenue = yields.reduce((sum, y) => sum + (parseFloat(y.revenue) || 0), 0);
   const profit = totalRevenue - totalExpenses;
 
@@ -157,6 +168,25 @@ const FarmAnalytics = () => {
                 </p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Time Period Filter */}
+          <div className="mb-8">
+            <Label className="block text-sm font-medium mb-2">Filter by Time Period</Label>
+            <Select
+              value={timePeriod}
+              onValueChange={(value) => setTimePeriod(value as '7' | '30' | '90' | 'all')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select time period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 Days</SelectItem>
+                <SelectItem value="30">Last 30 Days</SelectItem>
+                <SelectItem value="90">Last 90 Days</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Expenses Section */}

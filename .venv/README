@@ -1,0 +1,8 @@
+This folder is reserved for a Python virtual environment.
+Create it with:
+
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+The project expects the venv at .venv to make the editor pick up packages.

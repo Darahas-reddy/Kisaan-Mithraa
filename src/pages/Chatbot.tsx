@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Send, Mic, Volume2, Loader2, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AuthGuard from '@/components/AuthGuard';
+import useTranslate from '@/hooks/useTranslate';
+import { LanguageContext } from '@/contexts/LanguageContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 
@@ -21,33 +23,16 @@ const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [language, setLanguage] = useState('en');
+  const { language, setLanguage } = useContext(LanguageContext);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const t = useTranslate();
+  const [voiceChatEnabled, setVoiceChatEnabled] = useState(false);
+  const awaitingReplyRef = useRef(false);
 
   useEffect(() => {
     loadChatHistory();
-  }, []);
-
-  useEffect(() => {
-    const loadPreferredLanguage = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data } = await supabase
-          .from('profiles')
-          .select('language')
-          .eq('user_id', user.id)
-          .single();
-        if (data?.language) {
-          setLanguage(data.language);
-        }
-      } catch (e) {
-        // ignore and keep default
-      }
-    };
-    loadPreferredLanguage();
   }, []);
 
   useEffect(() => {
@@ -103,10 +88,14 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
+      const langCodeShort = (language || 'en').split('-')[0];
       const { data, error } = await supabase.functions.invoke('chat-assistant', {
         body: {
           message: input,
-          language,
+          // explicit signals for the function: user language and desired response/tts language
+          language: langCodeShort,
+          response_language: langCodeShort,
+          tts_language: langCodeShort,
           history: messages.slice(-5).map((m) => ({
             role: m.role,
             content: m.content,
@@ -124,6 +113,19 @@ const Chatbot = () => {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Play TTS for the assistant response. If voice-chat is enabled, stop listening, play, then restart listening.
+      try {
+        if (voiceChatEnabled) {
+          awaitingReplyRef.current = true;
+          stopListening();
+        }
+        await playTtsFromServer(data.response, langCodeShort, () => {
+          awaitingReplyRef.current = false;
+          if (voiceChatEnabled) startListening();
+        });
+      } catch (_){ }
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -140,8 +142,19 @@ const Chatbot = () => {
       setInput(text);
       handleSend();
     },
-    language,
+    language: (language || 'en').split('-')[0],
   });
+
+  // Restart recognition when language changes while voice-chat is enabled so recognizer uses new lang.
+  useEffect(() => {
+    if (voiceChatEnabled) {
+      try {
+        stopListening();
+        startListening();
+      } catch (_) {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   const sanitizeForSpeech = (raw: string): string => {
     let s = raw;
@@ -211,6 +224,50 @@ const Chatbot = () => {
     }
   };
 
+  // New helper: play TTS from backend (Flask /api/voice). Accepts an optional onFinished callback.
+  const playTtsFromServer = async (text: string, langCode?: string, onFinished?: () => void) => {
+    try {
+      const base = ((import.meta as any).env?.VITE_PREDICT_URL) || 'http://127.0.0.1:5000';
+      const langParam = (langCode || language) || 'en';
+      const url = `${base.replace(/\/$/, '')}/api/voice?text=` + encodeURIComponent(text) + '&lang=' + encodeURIComponent(langParam);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('TTS server failed');
+      const blob = await resp.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        try { URL.revokeObjectURL(audioUrl); } catch (_) {}
+        if (onFinished) onFinished();
+      };
+      await audio.play();
+    } catch (e) {
+      // fallback to client-side Web Speech API
+      try {
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(sanitizeForSpeech(text));
+          const languageMap: Record<string, string> = {
+            'en': 'en-IN',
+            'hi': 'hi-IN',
+            'ta': 'ta-IN',
+            'te': 'te-IN',
+            'bn': 'bn-IN',
+            'mr': 'mr-IN',
+            'gu': 'gu-IN',
+            'kn': 'kn-IN',
+            'ml': 'ml-IN',
+            'pa': 'pa-IN'
+          };
+          const targetLang = languageMap[langCode || language] || 'en-IN';
+          utterance.lang = targetLang;
+          utterance.onend = () => { if (onFinished) onFinished(); };
+          window.speechSynthesis.speak(utterance);
+        } else {
+          if (onFinished) onFinished();
+        }
+      } catch (_) { /* ignore */ }
+    }
+  };
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex flex-col">
@@ -221,41 +278,27 @@ const Chatbot = () => {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div className="flex-1">
-                <h1 className="text-xl font-bold">AI Assistant</h1>
-                <p className="text-xs text-muted-foreground">Ask anything about farming</p>
+                <h1 className="text-xl font-bold">{t('ai_assistant_title') || 'AI Assistant'}</h1>
+                <p className="text-xs text-muted-foreground">{t('ai_assistant_subtitle') || 'Ask anything about farming'}</p>
               </div>
-              <Select
-                value={language}
-                onValueChange={async (value) => {
-                  setLanguage(value);
-                  try {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return;
-                    await supabase
-                      .from('profiles')
-                      .update({ language: value })
-                      .eq('user_id', user.id);
-                  } catch (e) {
-                    // non-blocking; ignore persistence errors
-                  }
-                }}
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="hi">हिंदी</SelectItem>
-                  <SelectItem value="ta">தமிழ்</SelectItem>
-                  <SelectItem value="te">తెలుగు</SelectItem>
-                  <SelectItem value="bn">বাংলা</SelectItem>
-                  <SelectItem value="mr">मराठी</SelectItem>
-                  <SelectItem value="gu">ગુજરાતી</SelectItem>
-                  <SelectItem value="kn">ಕನ್ನಡ</SelectItem>
-                  <SelectItem value="ml">മലയാളം</SelectItem>
-                  <SelectItem value="pa">ਪੰਜਾਬੀ</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={voiceChatEnabled ? 'destructive' : 'outline'}
+                  size="sm"
+                  onClick={async () => {
+                    if (voiceChatEnabled) {
+                      setVoiceChatEnabled(false);
+                      stopListening();
+                    } else {
+                      setVoiceChatEnabled(true);
+                      // start listening immediately
+                      try { startListening(); } catch (_) {}
+                    }
+                  }}
+                >
+                  {voiceChatEnabled ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -265,25 +308,13 @@ const Chatbot = () => {
             {messages.length === 0 ? (
               <Card className="bg-gradient-to-br from-primary/10 to-secondary/10">
                 <CardContent className="py-8">
-                  <h2 className="text-xl font-semibold text-center mb-4">
-                    {language === 'hi'
-                      ? 'नमस्ते! मैं आपकी कैसे मदद कर सकता हूं?'
-                      : 'Hello! How can I help you today?'}
-                  </h2>
+                  <h2 className="text-xl font-semibold text-center mb-4">{t('assistant_welcome')}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
-                      language === 'hi'
-                        ? 'धान की खेती के लिए सबसे अच्छा समय क्या है?'
-                        : 'What is the best time to plant rice?',
-                      language === 'hi'
-                        ? 'टमाटर के पत्ते पीले क्यों हो रहे हैं?'
-                        : 'Why are my tomato leaves turning yellow?',
-                      language === 'hi'
-                        ? 'जैविक खाद कैसे बनाएं?'
-                        : 'How do I make organic compost?',
-                      language === 'hi'
-                        ? 'कीट नियंत्रण के प्राकृतिक तरीके?'
-                        : 'Natural ways to control pests?',
+                      t('suggestion_rice'),
+                      t('suggestion_tomato_yellow'),
+                      t('suggestion_compost'),
+                      t('suggestion_pests'),
                     ].map((suggestion, idx) => (
                       <Button
                         key={idx}
@@ -317,10 +348,10 @@ const Chatbot = () => {
                           variant="ghost"
                           size="sm"
                           className="mt-2 h-6 px-2"
-                          onClick={() => speakText(message.content)}
+                          onClick={async () => playTtsFromServer(message.content)}
                         >
                           <Volume2 className="w-3 h-3 mr-1" />
-                          Listen
+                          {t('listen') || 'Listen'}
                         </Button>
                       )}
                     </CardContent>
@@ -345,9 +376,7 @@ const Chatbot = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
-              placeholder={
-                language === 'hi' ? 'अपना सवाल यहां टाइप करें...' : 'Type your question here...'
-              }
+              placeholder={t('chat_input_placeholder') || 'Type your question here...'}
               disabled={isLoading}
               className="flex-1"
             />
@@ -366,6 +395,13 @@ const Chatbot = () => {
               disabled={isLoading}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => playTtsFromServer(messages[messages.length - 1]?.content || '')}
+            >
+              <Volume2 className="w-5 h-5" />
             </Button>
           </div>
         </main>

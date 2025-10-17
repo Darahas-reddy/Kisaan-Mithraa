@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sprout, Camera, MessageCircle, CloudRain, Shield, TrendingUp, Globe } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { LanguageContext } from '@/contexts/LanguageContext';
+import { translate } from '@/lib/i18n';
 
 const Index = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const { language } = useContext(LanguageContext);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,20 +29,20 @@ const Index = () => {
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-6 backdrop-blur-sm">
               <Sprout className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium text-primary">Empowering Indian Farmers with AI</span>
+              <span className="text-sm font-medium text-primary">{translate(language as any, 'app_tagline')}</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary-glow to-secondary bg-clip-text text-transparent">
-              SmartAgriTech: Your Smart Farming Companion
+              {translate(language as any, 'app_name')}: {translate(language as any, 'app_tagline')}
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              AI-powered crop disease detection, multilingual voice assistant, and real-time weather alerts—all in one platform
+              {translate(language as any, 'hero_subtitle')}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button variant="hero" size="lg" onClick={() => navigate('/auth')}>
-                Get Started Free
+                {translate(language as any, 'get_started')}
               </Button>
               <Button variant="outline" size="lg" onClick={() => navigate('/auth')}>
-                Learn More
+                {translate(language as any, 'learn_more')}
               </Button>
             </div>
           </div>
@@ -49,9 +52,9 @@ const Index = () => {
       {/* Features Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Complete Farming Solution</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{translate(language as any, 'app_tagline')}</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Advanced technology meeting traditional farming knowledge
+            {translate(language as any, 'hero_subtitle')}
           </p>
         </div>
 
@@ -120,13 +123,13 @@ const Index = () => {
 
       {/* CTA Section */}
       <div className="container mx-auto px-4 py-16">
-        <div className="bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 rounded-2xl p-8 md:p-12 text-center border">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Your Farming?</h2>
+          <div className="bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 rounded-2xl p-8 md:p-12 text-center border">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{translate(language as any, 'ready_cta')}</h2>
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of farmers using SmartAgriTech to increase yield, reduce crop loss, and farm smarter
+            {translate(language as any, 'join_message')}
           </p>
           <Button variant="hero" size="lg" onClick={() => navigate('/auth')}>
-            Start Free Today
+            {translate(language as any, 'get_started')}
           </Button>
         </div>
       </div>

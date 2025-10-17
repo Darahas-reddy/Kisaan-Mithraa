@@ -1,18 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, MessageCircle, CloudRain, Leaf, LogOut, TrendingUp, FileText, IndianRupee, Calendar, User, BarChart3, AlertTriangle } from 'lucide-react';
+import { Camera, MessageCircle, CloudRain, Leaf, LogOut, TrendingUp, FileText, IndianRupee, Calendar, User, BarChart3 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AuthGuard from '@/components/AuthGuard';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageContext } from '@/contexts/LanguageContext';
+import { translate } from '@/lib/i18n';
 
 const Dashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [recentDetections, setRecentDetections] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { language } = useContext(LanguageContext);
 
   useEffect(() => {
     loadProfile();
@@ -90,8 +93,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <Camera className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">Disease Detection</CardTitle>
-                <CardDescription>Upload crop photos for instant analysis</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'disease_detection')}</CardTitle>
+                <CardDescription>{translate(language as any, 'disease_detection_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -101,8 +104,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <MessageCircle className="w-8 h-8 text-secondary mb-2" />
-                <CardTitle className="text-lg">AI Assistant</CardTitle>
-                <CardDescription>Chat with voice support in your language</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'ai_assistant')}</CardTitle>
+                <CardDescription>{translate(language as any, 'ai_assistant_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -112,8 +115,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <CloudRain className="w-8 h-8 text-accent mb-2" />
-                <CardTitle className="text-lg">Weather Alerts</CardTitle>
-                <CardDescription>Real-time weather updates for your area</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'weather_alerts')}</CardTitle>
+                <CardDescription>{translate(language as any, 'weather_alerts_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -123,8 +126,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <Leaf className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">Safe Products</CardTitle>
-                <CardDescription>Government-approved recommendations</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'safe_products')}</CardTitle>
+                <CardDescription>{translate(language as any, 'safe_products_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -134,8 +137,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <IndianRupee className="w-8 h-8 text-secondary mb-2" />
-                <CardTitle className="text-lg">Market Prices</CardTitle>
-                <CardDescription>Real-time mandi prices for crops</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'market_prices')}</CardTitle>
+                <CardDescription>{translate(language as any, 'market_prices_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -145,19 +148,31 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <FileText className="w-8 h-8 text-accent mb-2" />
-                <CardTitle className="text-lg">Govt Schemes</CardTitle>
-                <CardDescription>Subsidies, loans, and support</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'govt_schemes')}</CardTitle>
+                <CardDescription>{translate(language as any, 'govt_schemes_desc')}</CardDescription>
+              </CardHeader>
+            </Card>
+
+            {/* Tool Rentals quick action */}
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-secondary/5"
+              onClick={() => navigate('/tool-rentals')}
+            >
+              <CardHeader>
+                <FileText className="w-8 h-8 text-primary mb-2" />
+                <CardTitle className="text-lg">{translate(language as any, 'tool_rentals')}</CardTitle>
+                <CardDescription>{translate(language as any, 'tool_rentals_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
             <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-secondary/5"
+              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-accent/5"
               onClick={() => navigate('/crop-calendar')}
             >
               <CardHeader>
                 <Calendar className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">Crop Calendar</CardTitle>
-                <CardDescription>Manage planting and harvest schedule</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'crop_calendar')}</CardTitle>
+                <CardDescription>{translate(language as any, 'crop_calendar_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -167,8 +182,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <TrendingUp className="w-8 h-8 text-accent mb-2" />
-                <CardTitle className="text-lg">Yield Prediction</CardTitle>
-                <CardDescription>AI-powered harvest forecasting</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'yield_prediction')}</CardTitle>
+                <CardDescription>{translate(language as any, 'yield_prediction_desc')}</CardDescription>
               </CardHeader>
             </Card>
 
@@ -178,19 +193,8 @@ const Dashboard = () => {
             >
               <CardHeader>
                 <BarChart3 className="w-8 h-8 text-secondary mb-2" />
-                <CardTitle className="text-lg">Farm Analytics</CardTitle>
-                <CardDescription>Track expenses, yields, and profits</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-accent/5"
-              onClick={() => navigate('/pest-alerts')}
-            >
-              <CardHeader>
-                <AlertTriangle className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">Pest Alerts</CardTitle>
-                <CardDescription>Community pest outbreak warnings</CardDescription>
+                <CardTitle className="text-lg">{translate(language as any, 'farm_analytics')}</CardTitle>
+                <CardDescription>{translate(language as any, 'farm_analytics_desc')}</CardDescription>
               </CardHeader>
             </Card>
           </div>

@@ -16,8 +16,8 @@ import CropCalendar from "./pages/CropCalendar";
 import Profile from "./pages/Profile";
 import YieldPrediction from "./pages/YieldPrediction";
 import FarmAnalytics from "./pages/FarmAnalytics";
-import PestAlerts from "./pages/PestAlerts";
 import NotFound from "./pages/NotFound";
+import ToolRentals from "./pages/ToolRentals";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +29,7 @@ const App = () => (
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/tool-rentals" element={<ToolRentals />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/disease-detection" element={<DiseaseDetection />} />
@@ -41,7 +42,6 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/yield-prediction" element={<YieldPrediction />} />
           <Route path="/farm-analytics" element={<FarmAnalytics />} />
-          <Route path="/pest-alerts" element={<PestAlerts />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

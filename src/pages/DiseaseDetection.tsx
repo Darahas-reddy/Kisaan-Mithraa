@@ -37,10 +37,10 @@ const DiseaseDetection = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Upload image to storage
+      // Upload image to storage (keep existing behavior)
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('crop-images')
         .upload(fileName, selectedFile);
@@ -52,12 +52,47 @@ const DiseaseDetection = () => {
         .from('crop-images')
         .getPublicUrl(fileName);
 
-      // Call AI detection edge function
-      const { data, error } = await supabase.functions.invoke('detect-disease', {
-        body: { imageUrl: publicUrl },
-      });
+      // Primary: call Supabase edge function (Lovable AI) for best accuracy and no CORS issues
+      let data: any = null;
+      try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('detect-disease', {
+          body: { imageUrl: publicUrl },
+        });
+        if (fnError) throw fnError;
+        data = fnData;
+      } catch (e) {
+        // Fallback: try local Flask backend if Supabase function fails
+        try {
+          const backendBase = ((import.meta as any).env?.VITE_PREDICT_URL) || 'http://127.0.0.1:5000';
+          const fd = new FormData();
+          fd.append('image', selectedFile);
+          const resp = await fetch(`${backendBase.replace(/\/$/, '')}/api/predict_file`, {
+            method: 'POST',
+            body: fd,
+          });
+          if (!resp.ok) throw new Error(`Flask prediction failed: ${resp.status}`);
+          data = await resp.json();
+          // Inform user that fallback was used
+          toast({ title: 'Fallback used', description: 'Used local prediction as edge function failed.' });
+        } catch (flErr) {
+          throw e || flErr;
+        }
+      }
 
-      if (error) throw error;
+      // Normalize backend response into UI-friendly shape
+      const disease = data?.disease || data?.label_telugu || data?.label || '';
+      let confidence: number | null = null;
+      if (data?.confidence != null) {
+        confidence = Number(data.confidence);
+      } else if (data?.accuracy != null) {
+        confidence = Number(data.accuracy);
+      } else if (data?.confidence_score != null) {
+        confidence = Number(data.confidence_score);
+      }
+      // If confidence in 0..1 convert to percent
+      if (confidence != null && confidence <= 1) confidence = confidence * 100;
+
+      const remedies = data?.remedies || (data?.telugu_text ? [data.telugu_text] : []);
 
       // Save detection to database
       const { error: dbError } = await supabase
@@ -65,14 +100,37 @@ const DiseaseDetection = () => {
         .insert({
           user_id: user.id,
           image_url: publicUrl,
-          disease_name: data.disease,
-          confidence: data.confidence,
-          remedies: data.remedies,
+          disease_name: disease,
+          confidence,
+          remedies,
         });
 
       if (dbError) throw dbError;
 
-      setResults(data);
+      setResults({ disease, confidence, remedies });
+
+      // Play Telugu audio for the result so consumers can listen in Telugu
+      (async () => {
+        try {
+          const predictBase = ((import.meta as any).env?.VITE_PREDICT_URL) || 'http://127.0.0.1:5000';
+          // Prefer telugu_text from backend; fallback to joining remedies or disease name
+          const teluguText = data?.telugu_text || (Array.isArray(remedies) ? remedies.join('. ') : (typeof remedies === 'string' ? remedies : '')) || disease || '';
+          if (teluguText) {
+            const url = `${predictBase.replace(/\/$/, '')}/api/voice?text=` + encodeURIComponent(teluguText) + '&lang=te';
+            const r = await fetch(url);
+            if (r.ok) {
+              const b = await r.blob();
+              const audioUrl = URL.createObjectURL(b);
+              const audio = new Audio(audioUrl);
+              // try to autoplay; browsers may block, but user can press play
+              audio.play().catch(()=>{});
+            }
+          }
+        } catch (_e) {
+          // ignore TTS failures
+        }
+      })();
+
       toast({
         title: 'Analysis Complete',
         description: 'Your crop has been analyzed successfully.',
