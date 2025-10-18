@@ -1,0 +1,58 @@
+[
+  {
+    "name": "PM-KISAN",
+    "type": "Income Support",
+    "eligibility": "All small and marginal farmers",
+    "benefit": "\u20b96000 per year",
+    "apply_link": "https://pmkisan.gov.in"
+  },
+  {
+    "name": "NABARD Farm Mechanization Loan",
+    "type": "Loan",
+    "eligibility": "Farmers purchasing equipment",
+    "benefit": "Low-interest loan up to \u20b910 lakh",
+    "apply_link": "https://www.nabard.org"
+  },
+  {
+    "name": "Kisan Credit Card (KCC)",
+    "type": "Loan",
+    "eligibility": "Small and marginal farmers",
+    "benefit": "Short-term crop loans at concessional rates",
+    "apply_link": "https://www.rbi.org.in/"
+  },
+  {
+    "name": "PMFBY (Pradhan Mantri Fasal Bima Yojana)",
+    "type": "Insurance",
+    "eligibility": "All enrolled farmers",
+    "benefit": "Covers crop loss due to natural calamities",
+    "apply_link": "https://pmfby.gov.in/"
+  },
+  {
+    "name": "Per Drop More Crop (Micro Irrigation)",
+    "type": "Subsidy",
+    "eligibility": "Farmers installing micro-irrigation systems",
+    "benefit": "Subsidy for drip and sprinkler systems",
+    "apply_link": "https://mowr.gov.in/"
+  },
+  {
+    "name": "Soil Health Card Scheme",
+    "type": "Support",
+    "eligibility": "All farmers",
+    "benefit": "Free soil testing and nutrient recommendations",
+    "apply_link": "https://soilhealth.dac.gov.in/"
+  },
+  {
+    "name": "Paramparagat Krishi Vikas Yojana (PKVY)",
+    "type": "Scheme",
+    "eligibility": "Farmers practising organic farming",
+    "benefit": "Incentives for organic inputs and market linkages",
+    "apply_link": "https://rkvy.nic.in/"
+  },
+  {
+    "name": "Prime Minister's Employment Generation Programme (PMEGP)",
+    "type": "Support",
+    "eligibility": "Micro-enterprises in rural areas",
+    "benefit": "Seed capital support for small agri-businesses",
+    "apply_link": "https://kviconline.gov.in/"
+  }
+]

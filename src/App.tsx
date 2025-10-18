@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import DiseaseDetection from "./pages/DiseaseDetection";
+import LoanSubsidyRecommender from "./pages/LoanSubsidyRecommender";
 import Chatbot from "./pages/Chatbot";
 import Products from "./pages/Products";
 import Weather from "./pages/Weather";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/disease-detection" element={<DiseaseDetection />} />
+          <Route path="/loan-subsidy" element={<LoanSubsidyRecommender />} />
           <Route path="/chatbot" element={<Chatbot />} />
           <Route path="/products" element={<Products />} />
           <Route path="/weather" element={<Weather />} />

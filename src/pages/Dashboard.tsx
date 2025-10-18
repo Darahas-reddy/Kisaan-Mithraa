@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, MessageCircle, CloudRain, Leaf, LogOut, TrendingUp, FileText, IndianRupee, Calendar, User, BarChart3 } from 'lucide-react';
+import { Camera, MessageCircle, CloudRain, Leaf, LogOut, TrendingUp, FileText, IndianRupee, Calendar, User, BarChart3, ChevronUp, ChevronDown } from 'lucide-react';
+// Native HTML5 drag-and-drop will be used; no external DnD library required
 import { useToast } from '@/components/ui/use-toast';
 import AuthGuard from '@/components/AuthGuard';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -16,6 +17,67 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { language } = useContext(LanguageContext);
+
+  const [customizeMode, setCustomizeMode] = useState<boolean>(false);
+  const initialTiles = [
+    { id: 'disease', route: '/disease-detection', titleKey: 'disease_detection', descKey: 'disease_detection_desc', icon: <Camera className="w-8 h-8 text-primary mb-2" /> },
+    { id: 'chatbot', route: '/chatbot', titleKey: 'ai_assistant', descKey: 'ai_assistant_desc', icon: <MessageCircle className="w-8 h-8 text-secondary mb-2" /> },
+    { id: 'weather', route: '/weather', titleKey: 'weather_alerts', descKey: 'weather_alerts_desc', icon: <CloudRain className="w-8 h-8 text-accent mb-2" /> },
+    { id: 'yield', route: '/yield-prediction', titleKey: 'yield_prediction', descKey: 'yield_prediction_desc', icon: <TrendingUp className="w-8 h-8 text-accent mb-2" /> },
+    { id: 'market', route: '/market-prices', titleKey: 'market_prices', descKey: 'market_prices_desc', icon: <IndianRupee className="w-8 h-8 text-secondary mb-2" /> },
+    { id: 'analytics', route: '/farm-analytics', titleKey: 'farm_analytics', descKey: 'farm_analytics_desc', icon: <BarChart3 className="w-8 h-8 text-secondary mb-2" /> },
+    { id: 'loans', route: '/loan-subsidy', title: 'Loans & Subsidies', desc: 'Find relevant schemes and loans', icon: <FileText className="w-8 h-8 text-secondary mb-2" /> },
+    { id: 'govt', route: '/government-schemes', titleKey: 'govt_schemes', descKey: 'govt_schemes_desc', icon: <FileText className="w-8 h-8 text-accent mb-2" /> },
+    { id: 'products', route: '/products', titleKey: 'safe_products', descKey: 'safe_products_desc', icon: <Leaf className="w-8 h-8 text-primary mb-2" /> },
+    { id: 'calendar', route: '/crop-calendar', titleKey: 'crop_calendar', descKey: 'crop_calendar_desc', icon: <Calendar className="w-8 h-8 text-primary mb-2" /> },
+    { id: 'tools', route: '/tool-rentals', titleKey: 'tool_rentals', descKey: 'tool_rentals_desc', icon: <FileText className="w-8 h-8 text-primary mb-2" /> },
+  ];
+
+  const [tiles, setTiles] = useState(() => {
+    try {
+      const raw = localStorage.getItem('dashboard_order');
+      if (!raw) return initialTiles;
+      const ids: string[] = JSON.parse(raw);
+      const map = Object.fromEntries(initialTiles.map((t) => [t.id, t]));
+      const ordered = ids.map((id) => map[id]).filter(Boolean);
+      // include any missing tiles at the end
+      const missing = initialTiles.filter((t) => !ids.includes(t.id));
+      return [...ordered, ...missing];
+    } catch (e) {
+      return initialTiles;
+    }
+  });
+
+  // Native drag-and-drop state
+  const dragItem = { current: -1 } as { current: number };
+  const dragOverItem = { current: -1 } as { current: number };
+
+  const handleDragStart = (position: number) => {
+    dragItem.current = position;
+  };
+
+  const handleDragEnter = (position: number) => {
+    dragOverItem.current = position;
+  };
+
+  const handleDragEnd = () => {
+    const _items = Array.from(tiles);
+    const draggedItemContent = _items[dragItem.current];
+    _items.splice(dragItem.current, 1);
+    _items.splice(dragOverItem.current, 0, draggedItemContent);
+    dragItem.current = -1;
+    dragOverItem.current = -1;
+    setTiles(_items);
+  };
+
+  useEffect(() => {
+    // persist order
+    try {
+      localStorage.setItem('dashboard_order', JSON.stringify(tiles.map((t) => t.id)));
+    } catch (e) {
+      // ignore
+    }
+  }, [tiles]);
 
   useEffect(() => {
     loadProfile();
@@ -67,7 +129,7 @@ const Dashboard = () => {
                 <Leaf className="w-5 h-5 text-white" />
               </div>
             <div>
-              <h1 className="text-xl font-bold">SmartAgriTech</h1>
+              <h1 className="text-xl font-bold">Kisaan Mithraa</h1>
               <p className="text-xs text-muted-foreground">Welcome, {profile?.full_name || 'Farmer'}</p>
             </div>
           </div>
@@ -85,118 +147,39 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
-          {/* Quick Actions */}
+          {/* Quick Actions (customizable) */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium">Quick Actions</h2>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => {
+                setTiles(initialTiles);
+                try { localStorage.removeItem('dashboard_order'); } catch (e) {}
+              }}>Reset</Button>
+              <Button variant={customizeMode ? 'secondary' : 'ghost'} size="sm" onClick={() => setCustomizeMode(!customizeMode)}>{customizeMode ? 'Done' : 'Customize'}</Button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-primary/5"
-              onClick={() => navigate('/disease-detection')}
-            >
-              <CardHeader>
-                <Camera className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'disease_detection')}</CardTitle>
-                <CardDescription>{translate(language as any, 'disease_detection_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-secondary/10 to-secondary/5"
-              onClick={() => navigate('/chatbot')}
-            >
-              <CardHeader>
-                <MessageCircle className="w-8 h-8 text-secondary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'ai_assistant')}</CardTitle>
-                <CardDescription>{translate(language as any, 'ai_assistant_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-accent/10 to-accent/5"
-              onClick={() => navigate('/weather')}
-            >
-              <CardHeader>
-                <CloudRain className="w-8 h-8 text-accent mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'weather_alerts')}</CardTitle>
-                <CardDescription>{translate(language as any, 'weather_alerts_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-accent/5"
-              onClick={() => navigate('/products')}
-            >
-              <CardHeader>
-                <Leaf className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'safe_products')}</CardTitle>
-                <CardDescription>{translate(language as any, 'safe_products_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-secondary/10 to-primary/5"
-              onClick={() => navigate('/market-prices')}
-            >
-              <CardHeader>
-                <IndianRupee className="w-8 h-8 text-secondary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'market_prices')}</CardTitle>
-                <CardDescription>{translate(language as any, 'market_prices_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-accent/10 to-secondary/5"
-              onClick={() => navigate('/government-schemes')}
-            >
-              <CardHeader>
-                <FileText className="w-8 h-8 text-accent mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'govt_schemes')}</CardTitle>
-                <CardDescription>{translate(language as any, 'govt_schemes_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            {/* Tool Rentals quick action */}
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-secondary/5"
-              onClick={() => navigate('/tool-rentals')}
-            >
-              <CardHeader>
-                <FileText className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'tool_rentals')}</CardTitle>
-                <CardDescription>{translate(language as any, 'tool_rentals_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-primary/10 to-accent/5"
-              onClick={() => navigate('/crop-calendar')}
-            >
-              <CardHeader>
-                <Calendar className="w-8 h-8 text-primary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'crop_calendar')}</CardTitle>
-                <CardDescription>{translate(language as any, 'crop_calendar_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-accent/10 to-primary/5"
-              onClick={() => navigate('/yield-prediction')}
-            >
-              <CardHeader>
-                <TrendingUp className="w-8 h-8 text-accent mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'yield_prediction')}</CardTitle>
-                <CardDescription>{translate(language as any, 'yield_prediction_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-secondary/10 to-accent/5"
-              onClick={() => navigate('/farm-analytics')}
-            >
-              <CardHeader>
-                <BarChart3 className="w-8 h-8 text-secondary mb-2" />
-                <CardTitle className="text-lg">{translate(language as any, 'farm_analytics')}</CardTitle>
-                <CardDescription>{translate(language as any, 'farm_analytics_desc')}</CardDescription>
-              </CardHeader>
-            </Card>
+            {tiles.map((tile, idx) => (
+              <div key={tile.id} data-id={tile.id} className="relative"
+                draggable={customizeMode}
+                onDragStart={() => handleDragStart(idx)}
+                onDragEnter={() => handleDragEnter(idx)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => { e.preventDefault(); }}
+              >
+                <Card
+                  className={`cursor-pointer hover:shadow-lg transition-all duration-300 ${customizeMode ? 'opacity-95' : ''}`}
+                  onClick={() => { if (!customizeMode) navigate(tile.route); }}
+                >
+                  <CardHeader>
+                    {tile.icon}
+                    <CardTitle className="text-lg">{tile.title || translate(language as any, tile.titleKey)}</CardTitle>
+                    <CardDescription>{tile.desc || translate(language as any, tile.descKey)}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+            ))}
           </div>
 
           {/* Recent Activity */}

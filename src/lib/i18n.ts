@@ -1,14 +1,14 @@
 export type SupportedLang = 'en' | 'hi' | 'ta' | 'te' | 'bn' | 'mr' | 'gu' | 'kn' | 'ml' | 'pa';
 
 export const en = {
-  app_name: 'Anna Sahayak',
+  app_name: 'Kisaan Mithraa',
   app_tagline: 'Your Smart Farming Companion',
-  hero_subtitle: 'AI-powered crop disease detection, multilingual voice assistant, and real-time weather alerts—all in one platform',
+  hero_subtitle: 'AI-powered crop disease detection, multilingual voice assistant, and real-time weather alerts\u2014all in one platform',
   get_started: 'Get Started Free',
   learn_more: 'Learn More',
   ready_cta: 'Ready to Transform Your Farming?',
-  join_message: 'Join thousands of farmers using SmartAgriTech to increase yield, reduce crop loss, and farm smarter',
-  welcome_to_app: 'Welcome to SmartAgriTech!',
+  join_message: 'Join thousands of farmers using Kisaan Mithraa to increase yield, reduce crop loss, and farm smarter',
+  welcome_to_app: 'Welcome to Kisaan Mithraa!',
   welcome_prefix: 'Welcome,',
   offline_ready: 'Offline',
   offline_ready_desc: 'Mobile-first design works even in low connectivity areas, ensuring help is always available',

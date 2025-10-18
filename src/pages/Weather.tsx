@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, CloudRain, Wind, Droplets, Sun, Cloud, MapPin, AlertTriangle, Thermometer, Leaf } from 'lucide-react';
+import { getSeason, cropRecommendations } from '@/lib/season';
 import { useToast } from '@/components/ui/use-toast';
 import AuthGuard from '@/components/AuthGuard';
 
@@ -229,29 +230,51 @@ const Weather = () => {
                   </div>
                 </div>
 
-                {/* Farming Recommendations */}
+                {/* Farming Recommendations (weather + season-aware) */}
                 <div className="mt-6 p-4 bg-primary/10 rounded-lg">
                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                     <Leaf className="w-4 h-4" />
                     Farming Recommendations
                   </h3>
-                  <ul className="text-sm space-y-1">
-                    {weather.rainfall > 50 && (
-                      <li>⚠️ Heavy rain expected - avoid pesticide application</li>
-                    )}
-                    {weather.windSpeed > 40 && (
-                      <li>⚠️ Strong winds - secure crops and equipment</li>
-                    )}
-                    {weather.temperature > 35 && (
-                      <li>🌡️ High temperature - increase irrigation frequency</li>
-                    )}
-                    {weather.humidity > 80 && (
-                      <li>💧 High humidity - monitor for fungal diseases</li>
-                    )}
-                    {weather.rainfall === 0 && weather.temperature < 35 && (
-                      <li>✅ Good conditions for field work and spraying</li>
-                    )}
-                  </ul>
+                  <div className="text-sm space-y-2">
+                    <ul className="space-y-1">
+                      {weather.rainfall > 50 && (
+                        <li>⚠️ Heavy rain expected - avoid pesticide application</li>
+                      )}
+                      {weather.windSpeed > 40 && (
+                        <li>⚠️ Strong winds - secure crops and equipment</li>
+                      )}
+                      {weather.temperature > 35 && (
+                        <li>🌡️ High temperature - increase irrigation frequency</li>
+                      )}
+                      {weather.humidity > 80 && (
+                        <li>💧 High humidity - monitor for fungal diseases</li>
+                      )}
+                      {weather.rainfall === 0 && weather.temperature < 35 && (
+                        <li>✅ Good conditions for field work and spraying</li>
+                      )}
+                    </ul>
+
+                    {/* Season-based crop suggestions */}
+                    <div className="mt-3">
+                      <h4 className="font-medium">Season-based crop suggestions</h4>
+                      <p className="text-xs text-muted-foreground mb-2">Based on current season</p>
+                      {
+                        (() => {
+                          const season = getSeason(new Date());
+                          const crops = cropRecommendations[season] || [];
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              <span className="px-2 py-1 text-xs rounded bg-muted/20">Season: {season.toUpperCase()}</span>
+                              {crops.map((c) => (
+                                <span key={c} className="px-2 py-1 text-xs rounded bg-secondary/10">{c}</span>
+                              ))}
+                            </div>
+                          );
+                        })()
+                      }
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

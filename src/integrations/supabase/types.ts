@@ -366,6 +366,45 @@ export type Database = {
         }
         Relationships: []
       }
+        soil_health_records: {
+          Row: {
+            id: string
+            user_id: string | null
+            soil_type: string | null
+            ph: number | null
+            n: number | null
+            p: number | null
+            k: number | null
+            organic_carbon: number | null
+            moisture: number | null
+            date_created: string | null
+          }
+          Insert: {
+            id?: string
+            user_id?: string | null
+            soil_type?: string | null
+            ph?: number | null
+            n?: number | null
+            p?: number | null
+            k?: number | null
+            organic_carbon?: number | null
+            moisture?: number | null
+            date_created?: string | null
+          }
+          Update: {
+            id?: string
+            user_id?: string | null
+            soil_type?: string | null
+            ph?: number | null
+            n?: number | null
+            p?: number | null
+            k?: number | null
+            organic_carbon?: number | null
+            moisture?: number | null
+            date_created?: string | null
+          }
+          Relationships: []
+        }
       pesticide_recommendations: {
         Row: {
           created_at: string | null
