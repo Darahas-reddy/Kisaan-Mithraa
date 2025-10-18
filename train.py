@@ -1,3 +1,42 @@
+# Quick venv repair/help for Windows if pip complains about "Unable to create process" or wrong user paths.
+# Run this (or read the printed commands) from a working Python installation.
+def venv_troubleshoot():
+    msg = """
+VENV TROUBLESHOOT HELP
+----------------------
+Common cause: .venv\\Scripts\\pip.exe points to a Python that no longer exists (different user).
+Recommended steps (Windows):
+
+1) Delete the broken venv folder:
+   - In PowerShell: Remove-Item -Recurse -Force .venv
+   - Or: rmdir /S /Q .venv
+
+2) Recreate venv using the Python you want (use full path if ambiguous):
+   - Example using system python:
+     C:\\Path\\To\\python.exe -m venv .venv
+
+3) Activate the new venv:
+   - PowerShell: .\\.venv\\Scripts\\Activate.ps1
+   - cmd.exe: .venv\\Scripts\\activate.bat
+
+4) Upgrade pip and install dependencies using the venv's python:
+   - python -m pip install --upgrade pip
+   - python -m pip install opencv-python numpy scikit-learn joblib
+
+Alternative repair (if you prefer not to recreate):
+   - Activate venv, then:
+     python -m ensurepip --upgrade
+     python -m pip install --upgrade pip
+
+If you still see errors, run `where python` and use the full path to the python.exe you want when creating the venv.
+"""
+    print(msg)
+
+# Optionally show the help if script invoked directly for troubleshooting
+if __name__ == "__main__" and False:
+    # flip to True to print quick help when running `python train.py` interactively
+    venv_troubleshoot()
+
 import os
 import cv2
 import numpy as np

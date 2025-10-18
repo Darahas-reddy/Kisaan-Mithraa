@@ -10,7 +10,6 @@ try:
     # --- ADDED: optional dependency for cross-origin requests
     from flask_cors import CORS
     import html  # <-- ADDED to escape source when serving as HTML
-    from typing import Any
 except ModuleNotFoundError as e:
     missing_pkg = str(e).split("'")[1] if "'" in str(e) else str(e)
     print(f"Error: Python package not found: {missing_pkg}")
@@ -27,7 +26,7 @@ CORS(app)
 
 # Load your trained model
 MODEL_PATH = "model/plant_model.pkl"
-model: Any = None
+model = None
 
 def load_model_from_file():
     """Try to load model using multiple strategies. Returns True if loaded."""
@@ -176,8 +175,6 @@ def predict():
 
         # Preprocess and predict
         processed_img = preprocess_image(img)
-        # `load_model_from_file()` above ensures model is loaded; assert to help static analyzers
-        assert model is not None and hasattr(model, 'predict'), "Model not loaded"
         prediction = model.predict(processed_img)[0]
 
         # Get Telugu treatment

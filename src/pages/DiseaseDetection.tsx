@@ -16,6 +16,18 @@ const DiseaseDetection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Read Flask base URL from Vite env (set VITE_FLASK_BASE in .env), fallback to local default
+  const FLASK_BASE = (import.meta as any)?.env?.VITE_FLASK_BASE || 'http://127.0.0.1:5000';
+
+  // --- NEW: open Flask web UI root (same-tab redirect)
+  const openPredictCode = () => {
+    try {
+      window.location.href = `${FLASK_BASE.replace(/\/$/, '')}/`; // same-tab redirect
+    } catch {
+      window.location.href = `${FLASK_BASE}/`;
+    }
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -37,99 +49,61 @@ const DiseaseDetection = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Upload image to storage (keep existing behavior)
+      // Upload image to storage (keep DB image_url for record)
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
+      
       const { error: uploadError } = await supabase.storage
         .from('crop-images')
         .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('crop-images')
         .getPublicUrl(fileName);
 
-      // Primary: call Supabase edge function (Lovable AI) for best accuracy and no CORS issues
-      let data: any = null;
-      try {
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('detect-disease', {
-          body: { imageUrl: publicUrl },
-        });
-        if (fnError) throw fnError;
-        data = fnData;
-      } catch (e) {
-        // Fallback: try local Flask backend if Supabase function fails
-        try {
-          const backendBase = ((import.meta as any).env?.VITE_PREDICT_URL) || 'http://127.0.0.1:5000';
-          const fd = new FormData();
-          fd.append('image', selectedFile);
-          const resp = await fetch(`${backendBase.replace(/\/$/, '')}/api/predict_file`, {
-            method: 'POST',
-            body: fd,
-          });
-          if (!resp.ok) throw new Error(`Flask prediction failed: ${resp.status}`);
-          data = await resp.json();
-          // Inform user that fallback was used
-          toast({ title: 'Fallback used', description: 'Used local prediction as edge function failed.' });
-        } catch (flErr) {
-          throw e || flErr;
-        }
+      // Call Flask /predict with the actual image file in FormData
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+      formData.append('imageUrl', publicUrl || '');
+
+      const resp = await fetch(`${FLASK_BASE}/predict`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`Flask /predict error ${resp.status}: ${text}`);
       }
 
-      // Normalize backend response into UI-friendly shape
-      const disease = data?.disease || data?.label_telugu || data?.label || '';
-      let confidence: number | null = null;
-      if (data?.confidence != null) {
-        confidence = Number(data.confidence);
-      } else if (data?.accuracy != null) {
-        confidence = Number(data.accuracy);
-      } else if (data?.confidence_score != null) {
-        confidence = Number(data.confidence_score);
-      }
-      // If confidence in 0..1 convert to percent
-      if (confidence != null && confidence <= 1) confidence = confidence * 100;
+      const flaskData = await resp.json();
+      if (flaskData.error) throw new Error(flaskData.error);
 
-      const remedies = data?.remedies || (data?.telugu_text ? [data.telugu_text] : []);
-
-      // Save detection to database
+      // Save detection to DB (same as before)
       const { error: dbError } = await supabase
         .from('disease_detections')
         .insert({
           user_id: user.id,
           image_url: publicUrl,
-          disease_name: disease,
-          confidence,
-          remedies,
+          disease_name: flaskData.disease || null,
+          confidence: flaskData.confidence ?? null,
+          remedies: flaskData.remedies || flaskData.treatment_telugu || null,
         });
 
       if (dbError) throw dbError;
 
-      setResults({ disease, confidence, remedies });
+      setResults(flaskData);
 
-      // Play Telugu audio for the result so consumers can listen in Telugu
-      (async () => {
-        try {
-          const predictBase = ((import.meta as any).env?.VITE_PREDICT_URL) || 'http://127.0.0.1:5000';
-          // Prefer telugu_text from backend; fallback to joining remedies or disease name
-          const teluguText = data?.telugu_text || (Array.isArray(remedies) ? remedies.join('. ') : (typeof remedies === 'string' ? remedies : '')) || disease || '';
-          if (teluguText) {
-            const url = `${predictBase.replace(/\/$/, '')}/api/voice?text=` + encodeURIComponent(teluguText) + '&lang=te';
-            const r = await fetch(url);
-            if (r.ok) {
-              const b = await r.blob();
-              const audioUrl = URL.createObjectURL(b);
-              const audio = new Audio(audioUrl);
-              // try to autoplay; browsers may block, but user can press play
-              audio.play().catch(()=>{});
-            }
-          }
-        } catch (_e) {
-          // ignore TTS failures
-        }
-      })();
+      // Try immediate playback (may be blocked by autoplay policy)
+      try {
+        const voiceUrl = flaskData.voice_url || `${FLASK_BASE}/voice`;
+        const audio = new Audio(voiceUrl);
+        audio.play().catch(() => { /* autoplay blocked */ });
+      } catch (e) {
+        /* ignore audio play errors */
+      }
 
       toast({
         title: 'Analysis Complete',
@@ -143,6 +117,26 @@ const DiseaseDetection = () => {
       });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Helper to replay voice on demand — use voice_url from results if present
+  const playTeluguVoice = () => {
+    try {
+      const voiceUrl = results?.voice_url || `${FLASK_BASE}/voice`;
+      new Audio(voiceUrl).play().catch(() => {
+        toast({
+          variant: 'destructive',
+          title: 'Audio blocked',
+          description: 'Browser blocked autoplay — please click the play button again.',
+        });
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Audio Error',
+        description: 'Unable to play voice note.',
+      });
     }
   };
 
@@ -170,111 +164,38 @@ const DiseaseDetection = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex flex-col items-center gap-4">
-                {preview ? (
-                  <div className="relative w-full max-w-md">
-                    <img
-                      src={preview}
-                      alt="Crop preview"
-                      className="w-full h-64 object-cover rounded-lg border"
-                    />
+              {/* Simplified: embed Flask predict web only for this component */}
+              <div className="w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Predict Web (Embedded)</h3>
+                  <div className="flex gap-2">
                     <Button
-                      variant="secondary"
+                      variant="outline"
                       size="sm"
-                      className="absolute top-2 right-2"
                       onClick={() => {
-                        setPreview('');
-                        setSelectedFile(null);
-                        setResults(null);
+                        try {
+                          window.open(FLASK_BASE, '_blank', 'noopener');
+                        } catch {
+                          window.location.href = FLASK_BASE;
+                        }
                       }}
                     >
-                      Change Photo
+                      Open in new tab
                     </Button>
                   </div>
-                ) : (
-                  <label className="w-full max-w-md h-64 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/5 transition-colors">
-                    <Camera className="w-12 h-12 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">Click to upload or take photo</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                  </label>
-                )}
+                </div>
 
-                {selectedFile && !isAnalyzing && !results && (
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    onClick={handleAnalyze}
-                    className="w-full max-w-md"
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    Analyze Crop Health
-                  </Button>
-                )}
-
-                {isAnalyzing && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Analyzing your crop...</span>
-                  </div>
-                )}
+                <div className="w-full h-[640px]">
+                  <iframe
+                    src={FLASK_BASE}
+                    title="Predict Web"
+                    className="w-full h-full border rounded"
+                    style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
-
-          {results && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-primary" />
-                  Analysis Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Detected Issue:</h3>
-                  <p className="text-foreground">{results.disease || 'No disease detected'}</p>
-                  {results.confidence && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Confidence: {Math.round(results.confidence)}%
-                    </p>
-                  )}
-                </div>
-
-                {results.remedies && (
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">Recommended Actions:</h3>
-                    <div className="space-y-2">
-                      {Array.isArray(results.remedies) ? (
-                        results.remedies.map((remedy: string, index: number) => (
-                          <Alert key={index}>
-                            <AlertDescription>{remedy}</AlertDescription>
-                          </Alert>
-                        ))
-                      ) : (
-                        <Alert>
-                          <AlertDescription>{results.remedies}</AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate('/products')}
-                >
-                  View Recommended Products
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </main>
       </div>
     </AuthGuard>
