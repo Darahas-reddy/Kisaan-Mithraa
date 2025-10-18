@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { ArrowLeft, User, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AuthGuard from '@/components/AuthGuard';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import LanguageSelector from '@/components/LanguageSelector';
+import { translate } from '@/lib/i18n';
+import { LanguageContext } from '@/contexts/LanguageContext';
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -103,6 +106,8 @@ const Profile = () => {
     );
   }
 
+  const { language } = useContext(LanguageContext);
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
@@ -114,24 +119,25 @@ const Profile = () => {
               </Button>
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold">Profile Settings</h1>
+                <h1 className="text-xl font-bold">{translate(language as any, 'welcome_to_app')}</h1>
               </div>
             </div>
+            <LanguageSelector />
             <ThemeToggle />
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-8 max-w-2xl">
+          <main className="container mx-auto px-4 py-8 max-w-2xl">
           <Card>
             <CardHeader>
-              <CardTitle>Account Information</CardTitle>
-              <CardDescription>Update your personal details and preferences</CardDescription>
+              <CardTitle>{translate(language as any, 'app_name')}</CardTitle>
+              <CardDescription>{translate(language as any, 'app_tagline')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} disabled className="bg-muted" />
-                <p className="text-sm text-muted-foreground">Email cannot be changed</p>
+                <p className="text-sm text-muted-foreground">{translate(language as any, 'offline_ready_desc')}</p>
               </div>
 
               <div className="space-y-2">
@@ -200,13 +206,13 @@ const Profile = () => {
               </div>
 
               <Button onClick={handleSave} disabled={saving} className="w-full">
-                {saving ? (
+                    {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    {translate(language as any, 'loading')}
                   </>
                 ) : (
-                  'Save Changes'
+                  translate(language as any, 'get_started')
                 )}
               </Button>
             </CardContent>

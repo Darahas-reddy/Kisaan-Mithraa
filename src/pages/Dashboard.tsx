@@ -8,6 +8,7 @@ import { Camera, MessageCircle, CloudRain, Leaf, LogOut, TrendingUp, FileText, I
 import { useToast } from '@/components/ui/use-toast';
 import AuthGuard from '@/components/AuthGuard';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import LanguageSelector from '@/components/LanguageSelector';
 import { LanguageContext } from '@/contexts/LanguageContext';
 import { translate } from '@/lib/i18n';
 
@@ -134,6 +135,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageSelector />
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
               <User className="w-5 h-5" />
@@ -149,13 +151,13 @@ const Dashboard = () => {
         <main className="container mx-auto px-4 py-8">
           {/* Quick Actions (customizable) */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium">Quick Actions</h2>
+            <h2 className="text-lg font-medium">{translate(language as any, 'ready_cta')}</h2>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => {
                 setTiles(initialTiles);
                 try { localStorage.removeItem('dashboard_order'); } catch (e) {}
               }}>Reset</Button>
-              <Button variant={customizeMode ? 'secondary' : 'ghost'} size="sm" onClick={() => setCustomizeMode(!customizeMode)}>{customizeMode ? 'Done' : 'Customize'}</Button>
+              <Button variant={customizeMode ? 'secondary' : 'ghost'} size="sm" onClick={() => setCustomizeMode(!customizeMode)}>{customizeMode ? translate(language as any, 'cancel') : 'Customize'}</Button>
             </div>
           </div>
 

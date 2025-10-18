@@ -25,6 +25,7 @@ const Chatbot = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { language, setLanguage } = useContext(LanguageContext);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const t = useTranslate();
@@ -234,9 +235,16 @@ const Chatbot = () => {
       if (!resp.ok) throw new Error('TTS server failed');
       const blob = await resp.blob();
       const audioUrl = URL.createObjectURL(blob);
+      // stop any existing audio
+      if (currentAudioRef.current) {
+        try { currentAudioRef.current.pause(); currentAudioRef.current.src = ''; } catch (_) {}
+        currentAudioRef.current = null;
+      }
       const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
       audio.onended = () => {
         try { URL.revokeObjectURL(audioUrl); } catch (_) {}
+        currentAudioRef.current = null;
         if (onFinished) onFinished();
       };
       await audio.play();
@@ -260,12 +268,28 @@ const Chatbot = () => {
           const targetLang = languageMap[langCode || language] || 'en-IN';
           utterance.lang = targetLang;
           utterance.onend = () => { if (onFinished) onFinished(); };
+          // stop any programmatic speech first
+          try { window.speechSynthesis.cancel(); } catch (_) {}
           window.speechSynthesis.speak(utterance);
         } else {
           if (onFinished) onFinished();
         }
       } catch (_) { /* ignore */ }
     }
+  };
+
+  // Stop playback and speech synthesis (and recognition if active)
+  const stopAllAudio = () => {
+    try {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = '';
+        currentAudioRef.current = null;
+      }
+    } catch (_) {}
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    try { if (voiceChatEnabled) stopListening(); } catch (_) {}
+    awaitingReplyRef.current = false;
   };
 
   return (
@@ -297,6 +321,14 @@ const Chatbot = () => {
                   }}
                 >
                   {voiceChatEnabled ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => stopAllAudio()}
+                >
+                  {/* Stop label */}
+                  {t('stop') || 'Stop'}
                 </Button>
               </div>
             </div>
@@ -344,15 +376,25 @@ const Chatbot = () => {
                     <CardContent className="py-3 px-4">
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       {message.role === 'assistant' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mt-2 h-6 px-2"
-                          onClick={async () => playTtsFromServer(message.content)}
-                        >
-                          <Volume2 className="w-3 h-3 mr-1" />
-                          {t('listen') || 'Listen'}
-                        </Button>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={async () => playTtsFromServer(message.content)}
+                          >
+                            <Volume2 className="w-3 h-3 mr-1" />
+                            {t('listen') || 'Listen'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => stopAllAudio()}
+                          >
+                            Stop
+                          </Button>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
